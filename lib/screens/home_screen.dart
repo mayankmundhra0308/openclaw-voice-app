@@ -23,7 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Thread> get _threads {
     return _threadsBox.values
-        .cast<Thread>()
+        .whereType<Map>()
+        .map((m) => Thread.fromMap(m))
         .toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
@@ -41,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    _threadsBox.put(thread.id, thread);
+    thread.save(_threadsBox);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ChatScreen(thread: thread)),
@@ -52,37 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ChatScreen(thread: thread)),
-    );
-  }
-
-  void _deleteThread(Thread thread) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardColor,
-        title: const Text('Delete conversation?', style: TextStyle(color: Colors.white)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              thread.delete();
-              // Also delete messages
-              final messagesBox = Hive.box('messages');
-              final toDelete = messagesBox.keys
-                  .where((k) => k.toString().startsWith(thread.id))
-                  .toList();
-              for (final k in toDelete) {
-                messagesBox.delete(k);
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -104,8 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 32, height: 32,
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor,
                 borderRadius: BorderRadius.circular(8),
@@ -133,32 +102,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 80, height: 80,
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppTheme.primaryColor,
-                      size: 40,
-                    ),
+                    child: const Icon(Icons.mic_none, color: AppTheme.primaryColor, size: 40),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'No conversations yet',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  const Text('No conversations yet',
+                      style: TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Tap + to start talking',
-                    style: TextStyle(color: Colors.white38, fontSize: 14),
-                  ),
+                  const Text('Tap + to start talking',
+                      style: TextStyle(color: Colors.white38, fontSize: 14)),
                 ],
               ),
             );
@@ -182,7 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: const Icon(Icons.delete_outline, color: Colors.red),
                 ),
-                onDismissed: (_) => thread.delete(),
+                onDismissed: (_) {
+                  thread.delete(_threadsBox);
+                  final messagesBox = Hive.box('messages');
+                  final toDelete = messagesBox.keys
+                      .where((k) => k.toString().startsWith(thread.id))
+                      .toList();
+                  for (final k in toDelete) messagesBox.delete(k);
+                },
                 child: InkWell(
                   onTap: () => _openThread(thread),
                   borderRadius: BorderRadius.circular(16),
@@ -191,63 +154,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.05),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
                     ),
                     child: Row(
                       children: [
                         Container(
-                          width: 44,
-                          height: 44,
+                          width: 44, height: 44,
                           decoration: BoxDecoration(
                             color: AppTheme.primaryColor.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.psychology,
-                            color: AppTheme.primaryColor,
-                            size: 22,
-                          ),
+                          child: const Icon(Icons.psychology, color: AppTheme.primaryColor, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                thread.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              Text(thread.title,
+                                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                               if (thread.lastMessage.isNotEmpty) ...[
                                 const SizedBox(height: 3),
-                                Text(
-                                  thread.lastMessage,
-                                  style: const TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 13,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                Text(thread.lastMessage,
+                                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
                               ],
                             ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          _formatTime(thread.updatedAt),
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                          ),
-                        ),
+                        Text(_formatTime(thread.updatedAt),
+                            style: const TextStyle(color: Colors.white38, fontSize: 11)),
                       ],
                     ),
                   ),
