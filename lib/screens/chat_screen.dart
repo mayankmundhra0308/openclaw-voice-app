@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/thread.dart';
-import '../services/claude_service.dart';
+import '../services/ai_service.dart';
 import '../services/voice_service.dart';
 import '../theme/app_theme.dart';
 import 'dart:math';
@@ -19,7 +19,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final ClaudeService _claude = ClaudeService();
+  final AiService _ai = AiService();
   final VoiceService _voice = VoiceService();
 
   late Box _messagesBox;
@@ -98,32 +98,35 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
     _scrollToBottom();
 
-    final response = await _claude.getChatResponse(text, _historyForApi);
+    final responseText = await _ai.getChatResponse(text, _historyForApi);
 
     final aiMsg = Message(
       id: '${widget.thread.id}_${_randomId()}',
       threadId: widget.thread.id,
       isUser: false,
-      text: response['text'] ?? '',
-      summary: response['summary'],
+      text: responseText,
+      summary: responseText,
       timestamp: DateTime.now(),
     );
     _messagesBox.put(aiMsg.id, aiMsg);
 
-    widget.thread.lastMessage = 'AI: ${(response['summary'] ?? response['text'] ?? '').substring(
-      0,
-      (response['summary'] ?? response['text'] ?? '').length.clamp(0, 60),
-    )}';
+    final preview = responseText.length > 60 ? '${responseText.substring(0, 60)}...' : responseText;
+    widget.thread.lastMessage = 'AI: $preview';
     widget.thread.updatedAt = DateTime.now();
     widget.thread.save();
 
     setState(() => _isLoading = false);
     _scrollToBottom();
 
-    // Auto-speak summary
-    if (response['summary'] != null && response['summary']!.isNotEmpty) {
+    // Auto-speak response
+    if (responseText.isNotEmpty) {
       setState(() => _isSpeaking = true);
-      await _voice.speak(response['summary']!);
+      // Clean markdown before speaking
+      final spokenText = responseText
+          .replaceAll(RegExp(r'\*\*|__|#|\*|_|`'), '')
+          .replaceAll(RegExp(r'\n{2,}'), '. ')
+          .trim();
+      await _voice.speak(spokenText);
       setState(() => _isSpeaking = false);
     }
   }
