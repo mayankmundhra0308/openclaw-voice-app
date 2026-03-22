@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ClaudeService {
   static const String _baseUrl = 'https://api.anthropic.com/v1/messages';
-  static const String _model = 'claude-3-5-haiku-20241022'; // Correct model name
+  static const String _model = 'claude-opus-4-5'; // Opus 4.6
 
   Future<String?> _getApiKey() async {
     final prefs = await SharedPreferences.getInstance();
