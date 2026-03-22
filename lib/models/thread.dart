@@ -1,22 +1,11 @@
 import 'package:hive/hive.dart';
 
-part 'thread.g.dart';
-
-@HiveType(typeId: 0)
-class Thread extends HiveObject {
-  @HiveField(0)
+// Simple model classes - no code generation needed
+class Thread {
   String id;
-
-  @HiveField(1)
   String title;
-
-  @HiveField(2)
   DateTime createdAt;
-
-  @HiveField(3)
   DateTime updatedAt;
-
-  @HiveField(4)
   String lastMessage;
 
   Thread({
@@ -26,26 +15,32 @@ class Thread extends HiveObject {
     required this.updatedAt,
     this.lastMessage = '',
   });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'lastMessage': lastMessage,
+  };
+
+  static Thread fromMap(Map map) => Thread(
+    id: map['id'] as String,
+    title: map['title'] as String,
+    createdAt: DateTime.parse(map['createdAt'] as String),
+    updatedAt: DateTime.parse(map['updatedAt'] as String),
+    lastMessage: (map['lastMessage'] as String?) ?? '',
+  );
+
+  void save(Box box) => box.put(id, toMap());
+  void delete(Box box) => box.delete(id);
 }
 
-@HiveType(typeId: 1)
-class Message extends HiveObject {
-  @HiveField(0)
+class Message {
   String id;
-
-  @HiveField(1)
   String threadId;
-
-  @HiveField(2)
   bool isUser;
-
-  @HiveField(3)
   String text;
-
-  @HiveField(4)
-  String? summary; // AI-generated 1-2 sentence voice summary
-
-  @HiveField(5)
   DateTime timestamp;
 
   Message({
@@ -53,7 +48,25 @@ class Message extends HiveObject {
     required this.threadId,
     required this.isUser,
     required this.text,
-    this.summary,
     required this.timestamp,
   });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'threadId': threadId,
+    'isUser': isUser,
+    'text': text,
+    'timestamp': timestamp.toIso8601String(),
+  };
+
+  static Message fromMap(Map map) => Message(
+    id: map['id'] as String,
+    threadId: map['threadId'] as String,
+    isUser: map['isUser'] as bool,
+    text: map['text'] as String,
+    timestamp: DateTime.parse(map['timestamp'] as String),
+  );
+
+  void save(Box box) => box.put(id, toMap());
+  void delete(Box box) => box.delete(id);
 }
